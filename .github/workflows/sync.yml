@@ -1,0 +1,37 @@
+name: Sync GestaoClick -> ClickUp
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # a cada 30 min (horario UTC). Veja nota sobre custo no fim.
+  workflow_dispatch: {}        # permite rodar manualmente pelo botao "Run workflow"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run sync:once
+        env:
+          # Tokens vêm dos Secrets do repositorio (Settings > Secrets and variables > Actions)
+          GC_ACCESS_TOKEN: ${{ secrets.GC_ACCESS_TOKEN }}
+          GC_SECRET_TOKEN: ${{ secrets.GC_SECRET_TOKEN }}
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+          # Config nao-secreta pode ficar aqui mesmo:
+          CLICKUP_LIST_AVULSO: "901714621075"
+          CLICKUP_LIST_CPFL: "901714621079"
+          CLICKUP_LIST_NEOENERGIA: "901714621083"
+          GC_CENTRO_CUSTO_MAP: ""
+          INITIAL_STATUS: "to do"
+          LOOKBACK_DAYS: "3"
+          RUN_ONCE: "true"
+
+# NOTA sobre minutos gratis:
+# - Repo privado: ~2000 min/mes gratis. A cada 30 min costuma encostar no limite;
+#   se quiser folga total, troque o cron para "0 * * * *" (de hora em hora).
+# - Repo publico: minutos ilimitados/gratis em qualquer cadencia.
