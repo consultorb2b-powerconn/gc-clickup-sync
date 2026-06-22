@@ -1,0 +1,25 @@
+{
+  "name": "gc-clickup-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sincroniza OS criadas no GestãoClick criando cards no ClickUp (polling).",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "sync:once": "tsx src/index.ts --once"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
