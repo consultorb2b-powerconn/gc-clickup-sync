@@ -1,6 +1,7 @@
 import { config, type ListKey } from "./config.js";
 import type { GcOrdemServico } from "./gestaoclick.js";
 import type { ClickUpField, CustomFieldValue, CreateTaskInput } from "./clickup.js";
+import { statusForSituacao } from "./statusMap.js";
 
 /** Decide em qual lista o card será criado, a partir do centro de custo. */
 export function routeListKey(os: GcOrdemServico): ListKey {
@@ -93,9 +94,12 @@ export function buildTaskInput(
   const cliente = os.nome_cliente ?? "sem cliente";
   const partes = [`OS ${os.codigo}`, cliente, modelo, serie].filter(Boolean);
 
+  // Status inicial: a situação da OS tem prioridade; senão o INITIAL_STATUS; senão omite.
+  const status = statusForSituacao(os.situacao_id) ?? config.sync.initialStatus;
+
   return {
     name: partes.join(" — "),
-    status: config.sync.initialStatus,
+    ...(status ? { status } : {}),
     markdown_description: buildDescription(os),
     custom_fields,
   };

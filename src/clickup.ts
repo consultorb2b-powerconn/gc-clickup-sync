@@ -46,15 +46,21 @@ export async function getListFields(listId: string): Promise<Map<string, ClickUp
   return byName;
 }
 
+export interface ExistingTask {
+  id: string;
+  status: string; // nome do status atual (lowercase), ex.: "to do"
+}
+
 /**
- * Verifica se já existe um card na lista cujo custom field "ID GestãoClick"
- * é igual ao id informado. É a nossa trava de deduplicação (idempotência).
+ * Procura o card cujo custom field "ID GestãoClick" é igual ao id informado.
+ * Serve de trava de deduplicação E permite comparar/atualizar o status.
+ * Retorna o card (id + status atual) ou null se não existir.
  */
-export async function taskExistsByGcId(
+export async function findTaskByGcId(
   listId: string,
   idFieldId: string,
   gcId: string
-): Promise<boolean> {
+): Promise<ExistingTask | null> {
   const filter = JSON.stringify([
     { field_id: idFieldId, operator: "=", value: gcId },
   ]);
@@ -66,8 +72,27 @@ export async function taskExistsByGcId(
   if (!res.ok) {
     throw new Error(`ClickUp GET tasks (dedup) falhou: ${res.status} ${await res.text()}`);
   }
-  const body = (await res.json()) as { tasks: unknown[] };
-  return (body.tasks?.length ?? 0) > 0;
+  const body = (await res.json()) as {
+    tasks: { id: string; status?: { status?: string } | string }[];
+  };
+  const t = body.tasks?.[0];
+  if (!t) return null;
+
+  const status =
+    typeof t.status === "string" ? t.status : t.status?.status ?? "";
+  return { id: t.id, status: status.toLowerCase() };
+}
+
+/** Atualiza o status de um card existente. */
+export async function updateTaskStatus(taskId: string, status: string): Promise<void> {
+  const res = await fetch(`${config.clickup.baseUrl}/task/${taskId}`, {
+    method: "PUT",
+    headers: headers(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    throw new Error(`ClickUp PUT task (status) falhou: ${res.status} ${await res.text()}`);
+  }
 }
 
 export async function createTask(listId: string, input: CreateTaskInput): Promise<string> {
