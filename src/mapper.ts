@@ -82,6 +82,7 @@ function fieldValuesFromOs(os: GcOrdemServico): Record<string, unknown> {
   return {
     "id gestãoclick": os.id,
     "nº os": os.codigo,
+    "cliente": os.nome_cliente || undefined,
     "número de série": eq.serie || undefined,
     "modelo do equipamento": eq.modelo || undefined,
     "defeitos relatados pelo cliente": eq.defeitos || undefined,
