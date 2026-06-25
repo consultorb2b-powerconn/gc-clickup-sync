@@ -29,6 +29,14 @@ export interface GcServico {
   valor_total?: string;
 }
 
+export interface GcAtributo {
+  id?: string;
+  atributo_id?: string;
+  descricao?: string;
+  conteudo?: string;
+  tipo?: string;
+}
+
 export interface GcOrdemServico {
   id: string;
   codigo: string;
@@ -37,6 +45,8 @@ export interface GcOrdemServico {
   tecnico_id: string | null;
   nome_tecnico: string | null;
   data: string | null;
+  data_entrada: string | null;
+  data_saida: string | null;
   previsao_entrega: string | null;
   situacao_id: string | null;
   nome_situacao: string | null;
@@ -48,6 +58,7 @@ export interface GcOrdemServico {
   equipamentos?: { equipamento: GcEquipamento }[];
   produtos?: { produto: GcProduto }[];
   servicos?: { servico: GcServico }[];
+  atributos?: { atributo: GcAtributo }[];
   [k: string]: unknown;
 }
 

@@ -94,6 +94,39 @@ function listaComponentes(os: GcOrdemServico): string {
  * Os nomes precisam bater (case-insensitive) com os campos criados na UI.
  * Campos que não existirem na lista são simplesmente ignorados.
  */
+
+/** Remove ":" final e espaços de uma descrição de atributo. Ex.: "MOD:" -> "MOD". */
+function limpaDescricao(d: string | undefined): string {
+  return (d ?? "").replace(/[:\s]+$/, "").trim();
+}
+
+/** Extrai o conteúdo do atributo cujo nome contém "RASTREIO" (ex.: "COD RASTREIO:"). */
+function codRastreio(os: GcOrdemServico): string | undefined {
+  const at = (os.atributos ?? []).find((a) =>
+    (a.atributo?.descricao ?? "").toUpperCase().includes("RASTREIO")
+  );
+  const v = at?.atributo?.conteudo?.trim();
+  return v || undefined;
+}
+
+/**
+ * Consolida os atributos da OS num texto legível "Descrição: conteúdo · …".
+ * Pula vazios, "EM BRANCO" (checklist não marcado) e o COD RASTREIO (tem campo próprio).
+ */
+function fichaTecnica(os: GcOrdemServico): string | undefined {
+  const partes = (os.atributos ?? [])
+    .map((a) => a.atributo ?? {})
+    .filter((at) => {
+      const c = (at.conteudo ?? "").trim();
+      const desc = (at.descricao ?? "").toUpperCase();
+      if (!c || c.toUpperCase() === "EM BRANCO") return false;
+      if (desc.includes("RASTREIO")) return false; // já vai no campo próprio
+      return true;
+    })
+    .map((at) => `${limpaDescricao(at.descricao)}: ${at.conteudo?.trim()}`);
+  return partes.length ? partes.join(" · ") : undefined;
+}
+
 function fieldValuesFromOs(os: GcOrdemServico): Record<string, unknown> {
   const eq = os.equipamentos?.[0]?.equipamento ?? {};
   const tServ = totalServicos(os);
@@ -117,6 +150,12 @@ function fieldValuesFromOs(os: GcOrdemServico): Record<string, unknown> {
     "observações internas": os.observacoes_interna || undefined,
     "data de recebimento": parseGcDateMs(os.data_entrada ?? os.data),
     "data recebimento (br)": formatGcDateBR(os.data_entrada ?? os.data),
+    "data de saída": parseGcDateMs(os.data_saida),
+    "data saída (br)": formatGcDateBR(os.data_saida),
+    "técnico": os.nome_tecnico || undefined,
+    "situação gestãoclick": os.nome_situacao || undefined,
+    "cód. rastreio": codRastreio(os),
+    "ficha técnica": fichaTecnica(os),
   };
 }
 
@@ -197,6 +236,7 @@ function buildDescription(os: GcOrdemServico): string {
     `**Origem:** GestãoClick OS ${os.codigo} (id ${os.id})`,
     os.nome_cliente ? `**Cliente:** ${os.nome_cliente}` : null,
     (os.data_entrada ?? os.data) ? `**Data de recebimento:** ${os.data_entrada ?? os.data}` : null,
+    os.data_saida ? `**Data de saída:** ${os.data_saida}` : null,
     os.nome_situacao ? `**Situação no GestãoClick:** ${os.nome_situacao}` : null,
     eq.defeitos ? `\n### Defeitos relatados\n${eq.defeitos}` : null,
     eq.solucao ? `\n### Solução\n${eq.solucao}` : null,
