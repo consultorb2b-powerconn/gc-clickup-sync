@@ -25,6 +25,19 @@ function headers(): Record<string, string> {
   };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** fetch ao ClickUp com retry automático em 429 (rate limit). */
+async function cuFetch(url: string, init?: RequestInit, tentativas = 5): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || i >= tentativas) return res;
+    const ra = Number(res.headers.get("retry-after"));
+    const espera = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 2000 * (i + 1);
+    await sleep(espera);
+  }
+}
+
 const fieldCache = new Map<string, Map<string, ClickUpField>>();
 
 /** Lê os custom fields de uma lista e indexa por nome (lowercase). Cacheado. */
@@ -32,7 +45,7 @@ export async function getListFields(listId: string): Promise<Map<string, ClickUp
   const cached = fieldCache.get(listId);
   if (cached) return cached;
 
-  const res = await fetch(`${config.clickup.baseUrl}/list/${listId}/field`, {
+  const res = await cuFetch(`${config.clickup.baseUrl}/list/${listId}/field`, {
     headers: headers(),
   });
   if (!res.ok) {
@@ -69,7 +82,7 @@ export async function findTaskByGcId(
     `${config.clickup.baseUrl}/list/${listId}/task` +
     `?include_closed=true&custom_fields=${encodeURIComponent(filter)}`;
 
-  const res = await fetch(url, { headers: headers() });
+  const res = await cuFetch(url, { headers: headers() });
   if (!res.ok) {
     throw new Error(`ClickUp GET tasks (dedup) falhou: ${res.status} ${await res.text()}`);
   }
@@ -97,7 +110,7 @@ export async function findTaskByGcId(
 
 /** Atualiza o status de um card existente. */
 export async function updateTaskStatus(taskId: string, status: string): Promise<void> {
-  const res = await fetch(`${config.clickup.baseUrl}/task/${taskId}`, {
+  const res = await cuFetch(`${config.clickup.baseUrl}/task/${taskId}`, {
     method: "PUT",
     headers: headers(),
     body: JSON.stringify({ status }),
@@ -113,7 +126,7 @@ export async function setTaskFieldValue(
   fieldId: string,
   value: unknown
 ): Promise<void> {
-  const res = await fetch(
+  const res = await cuFetch(
     `${config.clickup.baseUrl}/task/${taskId}/field/${fieldId}`,
     {
       method: "POST",
@@ -129,7 +142,7 @@ export async function setTaskFieldValue(
 }
 
 export async function createTask(listId: string, input: CreateTaskInput): Promise<string> {
-  const res = await fetch(`${config.clickup.baseUrl}/list/${listId}/task`, {
+  const res = await cuFetch(`${config.clickup.baseUrl}/list/${listId}/task`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify(input),

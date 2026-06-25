@@ -40,6 +40,9 @@ export const config = {
   sync: {
     cron: process.env.SYNC_CRON?.trim() || "*/10 * * * *",
     lookbackDays: Number(process.env.LOOKBACK_DAYS ?? 3),
+    // Data fixa de início da janela (AAAA-MM-DD). Se definida, sobrepõe o lookbackDays.
+    // Útil para backfill único, ex.: SYNC_SINCE=2026-01-01. Remova depois.
+    since: process.env.SYNC_SINCE?.trim() || "",
     initialStatus: process.env.INITIAL_STATUS?.trim() || "",
     // Re-sync de campos em cards já existentes (GestãoClick manda nesses campos).
     // Ligado por padrão; defina RESYNC_FIELDS=false para desligar.

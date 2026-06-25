@@ -26,10 +26,16 @@ const ID_FIELD_NAME = "id gestãoclick";
 
 export async function runOnce(): Promise<void> {
   const fim = new Date();
-  const inicio = new Date(fim);
-  inicio.setDate(inicio.getDate() - config.sync.lookbackDays);
+  let dataInicio: string;
+  if (config.sync.since) {
+    dataInicio = config.sync.since; // janela fixa (backfill)
+  } else {
+    const inicio = new Date(fim);
+    inicio.setDate(inicio.getDate() - config.sync.lookbackDays);
+    dataInicio = ymd(inicio);
+  }
 
-  const janela = { dataInicio: ymd(inicio), dataFim: ymd(fim) };
+  const janela = { dataInicio, dataFim: ymd(fim) };
   console.log(`[sync] janela ${janela.dataInicio} → ${janela.dataFim}`);
 
   const ordens = await listOrdensServicos(janela);
