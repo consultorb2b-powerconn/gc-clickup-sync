@@ -11,27 +11,28 @@
  * ficam de fora de propósito.
  */
 
-/** Os 19 status do fluxo Avulso (nomes exatamente como criados no ClickUp). */
+/** Os 19 status do fluxo Avulso (nomes exatamente como criados no ClickUp).
+ *  Alguns foram encurtados por causa do limite de ~20 caracteres do ClickUp. */
 export const STATUS_AVULSO = {
   ENTRADA: "Entrada e Pré-Análise",
   PRE_ANALISE_OK: "Pré-Análise Finalizada",
   ANALISE: "Análise – Montar O.S.",
-  RETORNAR_T4_T5: "Retornar T4/T5 (sem reparo)",
+  RETORNAR_T4_T5: "Retornar T4/T5",
   AG_APROVACAO: "Aguardando Aprovação",
-  COBRAR_NAO_APROVADO: "Cobrar Retorno – Não Aprovado",
-  COBRAR_SEM_RESPOSTA: "Cobrar Retorno – Sem Resposta",
+  COBRAR_NAO_APROVADO: "Cobrar – Não Aprovado",
+  COBRAR_SEM_RESPOSTA: "Cobrar – Sem Resposta",
   LIBERADO_RETORNO: "Liberado para Retorno",
-  RETORNADO_EMBALAGEM: "Retornado – Embalagem e Envio",
-  APROVADO_MANUTENCAO: "Aprovado para Manutenção",
+  RETORNADO_EMBALAGEM: "Retornado s/ Reparo",
+  APROVADO_MANUTENCAO: "Aprovado p/ Manutenção",
   AG_COMPONENTES: "Aguardando Componentes",
   EM_MANUTENCAO_FILA: "Em Manutenção (Fila)",
   EM_BANCADA: "Em Bancada (Semana)",
   EM_TESTE: "Em Teste Pré-Envio",
-  SERV_FINALIZADO_NF: "Serv. Finalizados – Ag. NF Retorno",
+  SERV_FINALIZADO_NF: "Serv. Fim – Ag. NF",
   NF_AUTORIZADA: "NF Retorno Autorizada",
   FATURAR_AVULSO: "Faturar Avulso",
-  EMBALAGEM_POSTAGEM: "Embalagem e Pré-Postagem",
-  FINALIZADO: "Finalizado Avulso / Enviado",
+  EMBALAGEM_POSTAGEM: "Embalagem/Pré-Postagem",
+  FINALIZADO: "Finalizado / Enviado",
 } as const;
 
 /**
