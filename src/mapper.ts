@@ -42,6 +42,27 @@ function parseGcDateMs(d: string | null): number | undefined {
   return Number.isFinite(t) ? t : undefined;
 }
 
+/**
+ * Formata a data do GestãoClick (AAAA-MM-DD ou DD/MM/AAAA) como string dd/mm/aaaa
+ * para exibição legível no ClickUp (campo de TEXTO), contornando o formato
+ * americano (M/D/AA) do app, que não tem toggle de formato confiável.
+ */
+function formatGcDateBR(d: string | null): string | undefined {
+  if (!d) return undefined;
+  const iso = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const br = d.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  let y: number, m: number, day: number;
+  if (iso) {
+    y = +iso[1]; m = +iso[2]; day = +iso[3];
+  } else if (br) {
+    day = +br[1]; m = +br[2]; y = +br[3];
+  } else {
+    return undefined;
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(day)}/${pad(m)}/${y}`;
+}
+
 function totalServicos(os: GcOrdemServico): number {
   return (os.servicos ?? []).reduce((acc, s) => acc + num(s.servico?.valor_total), 0);
 }
@@ -94,7 +115,8 @@ function fieldValuesFromOs(os: GcOrdemServico): Record<string, unknown> {
     "total produtos": tProd || undefined,
     "valor total os": valorTotal || undefined,
     "observações internas": os.observacoes_interna || undefined,
-    "data de recebimento": parseGcDateMs(os.data),
+    "data de recebimento": parseGcDateMs(os.data_entrada ?? os.data),
+    "data recebimento (br)": formatGcDateBR(os.data_entrada ?? os.data),
   };
 }
 
@@ -174,7 +196,7 @@ function buildDescription(os: GcOrdemServico): string {
   const linhas = [
     `**Origem:** GestãoClick OS ${os.codigo} (id ${os.id})`,
     os.nome_cliente ? `**Cliente:** ${os.nome_cliente}` : null,
-    os.data ? `**Data de recebimento:** ${os.data}` : null,
+    (os.data_entrada ?? os.data) ? `**Data de recebimento:** ${os.data_entrada ?? os.data}` : null,
     os.nome_situacao ? `**Situação no GestãoClick:** ${os.nome_situacao}` : null,
     eq.defeitos ? `\n### Defeitos relatados\n${eq.defeitos}` : null,
     eq.solucao ? `\n### Solução\n${eq.solucao}` : null,
