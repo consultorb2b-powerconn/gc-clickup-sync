@@ -1,64 +1,73 @@
-// De-para: situacao_id do GestãoClick -> status do ClickUp (to do / in progress / complete).
-// Mão única (GestãoClick manda). É só uma tabela — ajuste à vontade.
-// Situações não listadas aqui NÃO alteram o status do card (segurança).
+/**
+ * De-para entre a situação da OS no GestãoClick (situacao_id) e o status
+ * no ClickUp (lista OS – Avulso, 19 status do fluxo Avulso).
+ *
+ * - Os VALORES precisam bater (case-insensitive) com o NOME do status criado no ClickUp.
+ * - situacao_id NÃO listado aqui => statusForSituacao retorna undefined => o sync
+ *   NÃO altera o status do card (fica como está / como o usuário deixou).
+ *
+ * Situações de CONTRATO (FATURAR CONTRATO, FINALIZADO EM CONTRATO/GARANTIA/SEM CUSTO)
+ * e situações de pedido/e-commerce legadas ("Em aberto", "Pedido enviado", etc.)
+ * ficam de fora de propósito.
+ */
 
-export type ClickUpStatus = "to do" | "in progress" | "complete";
+/** Os 19 status do fluxo Avulso (nomes exatamente como criados no ClickUp). */
+export const STATUS_AVULSO = {
+  ENTRADA: "Entrada e Pré-Análise",
+  PRE_ANALISE_OK: "Pré-Análise Finalizada",
+  ANALISE: "Análise – Montar O.S.",
+  RETORNAR_T4_T5: "Retornar T4/T5 (sem reparo)",
+  AG_APROVACAO: "Aguardando Aprovação",
+  COBRAR_NAO_APROVADO: "Cobrar Retorno – Não Aprovado",
+  COBRAR_SEM_RESPOSTA: "Cobrar Retorno – Sem Resposta",
+  LIBERADO_RETORNO: "Liberado para Retorno",
+  RETORNADO_EMBALAGEM: "Retornado – Embalagem e Envio",
+  APROVADO_MANUTENCAO: "Aprovado para Manutenção",
+  AG_COMPONENTES: "Aguardando Componentes",
+  EM_MANUTENCAO_FILA: "Em Manutenção (Fila)",
+  EM_BANCADA: "Em Bancada (Semana)",
+  EM_TESTE: "Em Teste Pré-Envio",
+  SERV_FINALIZADO_NF: "Serv. Finalizados – Ag. NF Retorno",
+  NF_AUTORIZADA: "NF Retorno Autorizada",
+  FATURAR_AVULSO: "Faturar Avulso",
+  EMBALAGEM_POSTAGEM: "Embalagem e Pré-Postagem",
+  FINALIZADO: "Finalizado Avulso / Enviado",
+} as const;
 
-const MAP: Record<string, ClickUpStatus> = {
-  // --- to do (chegou, ainda não trabalhado) ---
-  "6155342": "to do", // ENTRADA/ PRÉ ANALISE
-  "5811003": "to do", // Em aberto (legado)
-  "5810999": "to do", // Em aberto (legado)
-
-  // --- in progress (em trabalho / aguardando etapa) ---
-  "9123792": "in progress", // EM ANALISE
-  "8910314": "in progress", // ENVIAR EMAIL
-  "5810995": "in progress", // EM APROVAÇÃO
-  "9123813": "in progress", // APROVADO/ AG. MANUTENÇÃO
-  "5810996": "in progress", // EM MANUTENÇÃO/ BANCADA
-  "6345313": "in progress", // AGUARDANDO COMPONENTE
-  "5995833": "in progress", // ATUALIZAÇÃO FW
-  "7183929": "in progress", // TESTE / PRÉ ENVIO
-  "9123815": "in progress", // FATURAR / AVULSO
-  "9135852": "in progress", // FATURAR CONTRATO/ DESPACHADO
-  "9123949": "in progress", // FATURAR / RET. SEM RESPOSTA
-  "9123930": "in progress", // FATURAR/ NÃO APROVADOS
-  "9123852": "in progress", // SERV. FINALIZADO / AG. NF RETORNO
-  "9123854": "in progress", // NF RET. / AUTORIZADO
-  "9123911": "in progress", // LIBERADO/ EMBALAGEM PRÉ POSTAGEM
-  "7322770": "in progress", // AGUARDANDO ENVIO
-  "8519526": "in progress", // INTERNO
-  "5811007": "in progress", // Aguardando pagamento (legado)
-  "5811008": "in progress", // Pagamento confirmado (legado)
-  "5811009": "in progress", // Pedido embalado (legado)
-  "5811011": "in progress", // Pedido enviado (legado)
-  "5811000": "in progress", // Em andamento (legado)
-  "5811004": "in progress", // Em andamento (legado)
-
-  // --- complete (finalizado / cancelado / retornado = fim da operação) ---
-  "9123891": "complete", // FINALIZADO/ AVULSO
-  "7222674": "complete", // FINALIZADO EM CONTRATO
-  "5810997": "complete", // FINALIZADO
-  "7215392": "complete", // FINALIZADO SEM CUSTO
-  "6162740": "complete", // FINALIZADO EM GARANTIA
-  "5996034": "complete", // CANCELADA
-  "6341882": "complete", // T4- SEM MANUTENÇÃO
-  "9135850": "complete", // T5/ DESCONTINUADO
-  "8138949": "complete", // RETORNO/ SEM AVARIAS
-  "8518151": "complete", // RETORNO/ SEM APROVAÇÃO
-  "6368825": "complete", // RETORNO/ NÃO APROVADO
-  "8517728": "complete", // RETORNO SEM MANUTENÇÃO
-  "5811012": "complete", // Pedido entregue (legado)
-  "5811005": "complete", // Concretizado (legado)
-  "5811001": "complete", // Concretizada (legado)
-  "5811006": "complete", // Cancelado (legado)
-  "5811002": "complete", // Cancelada (legado)
-  "5811010": "complete", // Pedido cancelado (legado)
-  // Não mapeados (ex.: "00" 9139534, "000" 9139590): card não muda de status.
+/**
+ * situacao_id (GestãoClick) -> nome do status (ClickUp).
+ * Mapeadas: 23 situações. Sem mapeamento de propósito: ENVIAR EMAIL (8910314),
+ * ATUALIZAÇÃO FW (5995833) — etapas que não têm status equivalente.
+ */
+const SITUACAO_TO_STATUS: Record<string, string> = {
+  "6155342": STATUS_AVULSO.ENTRADA,                 // ENTRADA/ PRÉ ANALISE
+  "9123792": STATUS_AVULSO.ANALISE,                 // EM ANALISE
+  "9135850": STATUS_AVULSO.RETORNAR_T4_T5,          // T5/ DESCONTINUADO
+  "6341882": STATUS_AVULSO.RETORNAR_T4_T5,          // T4- SEM MANUTENÇÃO
+  "5810995": STATUS_AVULSO.AG_APROVACAO,            // EM APROVAÇÃO
+  "6368825": STATUS_AVULSO.COBRAR_NAO_APROVADO,     // RETORNO/ NÃO APROVADO
+  "8518151": STATUS_AVULSO.COBRAR_NAO_APROVADO,     // RETORNO/ SEM APROVAÇÃO
+  "9123930": STATUS_AVULSO.COBRAR_NAO_APROVADO,     // FATURAR/ NÃO APROVADOS
+  "9123949": STATUS_AVULSO.COBRAR_SEM_RESPOSTA,     // FATURAR / RET. SEM RESPOSTA
+  "9123813": STATUS_AVULSO.APROVADO_MANUTENCAO,     // APROVADO/ AG. MANUTENÇÃO
+  "6345313": STATUS_AVULSO.AG_COMPONENTES,          // AGUARDANDO COMPONENTE
+  "5810996": STATUS_AVULSO.EM_MANUTENCAO_FILA,      // EM MANUTENÇÃO/ BANCADA
+  "7183929": STATUS_AVULSO.EM_TESTE,                // TESTE / PRÉ ENVIO
+  "9123852": STATUS_AVULSO.SERV_FINALIZADO_NF,      // SERV. FINALIZADO / AG. NF RETORNO
+  "9123854": STATUS_AVULSO.NF_AUTORIZADA,           // NF RET. / AUTORIZADO
+  "9123815": STATUS_AVULSO.FATURAR_AVULSO,          // FATURAR / AVULSO
+  "8517728": STATUS_AVULSO.RETORNADO_EMBALAGEM,     // RETORNO SEM MANUTENÇÃO
+  "8138949": STATUS_AVULSO.RETORNADO_EMBALAGEM,     // RETORNO/ SEM AVARIAS
+  "9123911": STATUS_AVULSO.EMBALAGEM_POSTAGEM,      // LIBERADO/ EMBALAGEM PRÉ POSTAGEM
+  "7322770": STATUS_AVULSO.EMBALAGEM_POSTAGEM,      // AGUARDANDO ENVIO
+  "9123891": STATUS_AVULSO.FINALIZADO,              // FINALIZADO/ AVULSO
 };
 
-/** Retorna o status ClickUp para a situação, ou undefined se não mapeada. */
-export function statusForSituacao(situacaoId: string | null | undefined): ClickUpStatus | undefined {
+/**
+ * Retorna o nome do status do ClickUp para a situação da OS, ou undefined
+ * se a situação não está mapeada (nesse caso o sync não mexe no status).
+ */
+export function statusForSituacao(situacaoId: string | null): string | undefined {
   if (!situacaoId) return undefined;
-  return MAP[situacaoId];
+  return SITUACAO_TO_STATUS[String(situacaoId)];
 }
