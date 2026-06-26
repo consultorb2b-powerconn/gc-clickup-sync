@@ -1,7 +1,7 @@
 name: Sync GestaoClick -> ClickUp
 on:
-  # schedule:
-  #   - cron: "*/30 * * * *"   # a cada 30 min (horario UTC). Veja nota sobre custo no fim.
+ schedule:
+   - cron: "*/30 * * * *"   # a cada 30 min (horario UTC). Veja nota sobre custo no fim.
   workflow_dispatch: {}        # permite rodar manualmente pelo botao "Run workflow"
 jobs:
   sync:
