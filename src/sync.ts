@@ -71,7 +71,10 @@ export async function runOnce(): Promise<void> {
 
       // Card já existe: (1) status se a situação mudou; (2) re-sync dos campos que mudaram.
       const alvo = statusForSituacao(os.situacao_id);
-      const statusMudou = !!alvo && alvo !== existing.status;
+      // ClickUp normaliza o status para minúsculas; compara case-insensitive
+      // para não reescrever o status à toa quando só difere a caixa.
+      const statusMudou =
+        !!alvo && alvo.toLowerCase() !== (existing.status ?? "").toLowerCase();
 
       let camposMudados: { id: string; value: unknown }[] = [];
       if (config.sync.resyncFields) {
