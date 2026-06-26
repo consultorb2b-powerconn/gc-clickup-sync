@@ -18,7 +18,21 @@ function ymd(d: Date): string {
 function sameValue(current: string, desired: unknown): boolean {
   const cn = Number(current);
   const dn = Number(desired as never);
-  if (current !== "" && Number.isFinite(cn) && Number.isFinite(dn)) return cn === dn;
+  if (current !== "" && Number.isFinite(cn) && Number.isFinite(dn)) {
+    // Campos de DATA: o ClickUp normaliza o timestamp para a meia-noite do fuso
+    // da conta e devolve um valor deslocado (algumas horas) em relação ao que
+    // gravamos (meio-dia UTC). Para datas, comparamos o DIA, não o ms exato,
+    // senão o campo seria reescrito a cada rodada. Heurística: epoch em ms
+    // (valores grandes, > ano 2001) cujos timestamps caem no mesmo dia UTC.
+    const ehEpochMs = Math.abs(cn) > 1e12 && Math.abs(dn) > 1e12;
+    if (ehEpochMs) {
+      const diaC = Math.floor(cn / 86_400_000);
+      const diaD = Math.floor(dn / 86_400_000);
+      // tolera diferença de 1 "dia" para cobrir o deslocamento de fuso na virada.
+      return Math.abs(diaC - diaD) <= 1;
+    }
+    return cn === dn;
+  }
   return current === String(desired ?? "");
 }
 
