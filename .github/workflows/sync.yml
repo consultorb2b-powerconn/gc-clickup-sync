@@ -1,8 +1,8 @@
 name: Sync GestaoClick -> ClickUp
 on:
   schedule:
-    - cron: "*/30 * * * *"   # a cada 30 min (horario UTC)
-  workflow_dispatch: {}        # permite rodar manualmente pelo botao "Run workflow"
+    - cron: "*/30 11-22 * * 1-5"   # 30 em 30 min, 08h-19h Brasilia (11-22 UTC), seg-sex
+  workflow_dispatch: {}            # permite rodar manualmente pelo botao "Run workflow"
 jobs:
   sync:
     runs-on: ubuntu-latest
