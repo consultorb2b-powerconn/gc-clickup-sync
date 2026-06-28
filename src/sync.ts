@@ -7,8 +7,17 @@ import {
   updateTaskStatus,
   setTaskFieldValue,
 } from "./clickup.js";
-import { routeListKey, listIdFor, buildTaskInput, buildCustomFields } from "./mapper.js";
+import { buildTaskInput, buildCustomFields } from "./mapper.js";
 import { statusForSituacao } from "./statusMap.js";
+import { statusForSituacaoContrato } from "./statusMapContrato.js";
+import { routeContrato, listIdParaOs } from "./contrato.js";
+
+const AVULSO_LIST_ID = process.env.CLICKUP_LIST_AVULSO ?? "901327620288";
+
+/** Escolhe o de-para situação→status conforme a LISTA onde o card vive. */
+function statusFnForList(listId: string) {
+  return listId === AVULSO_LIST_ID ? statusForSituacao : statusForSituacaoContrato;
+}
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -61,30 +70,59 @@ export async function runOnce(): Promise<void> {
 
   for (const os of ordens) {
     try {
-      const key = routeListKey(os);
-      const listId = listIdFor(key);
+      // Roteamento (Modelo A): produto override -> atributo+região -> avulso.
+      const key = routeContrato(os);            // "avulso" | "cpfl" | "neo"
+      const listId = listIdParaOs(os);          // id real da lista alvo
       const fields = await getListFields(listId);
 
       const idField = fields.get(ID_FIELD_NAME);
       if (!idField) {
         console.warn(
-          `[sync] lista ${listId} não tem o campo "ID GestãoClick" — crie-o na UI. Pulando OS ${os.codigo}.`
+          `[sync] lista ${listId} (${key}) não tem o campo "ID GestãoClick" — crie os custom fields nessa lista na UI. Pulando OS ${os.codigo}.`
         );
         continue;
       }
 
-      const existing = await findTaskByGcId(listId, idField.id, os.id);
+      // Dedup na lista roteada.
+      let existing = await findTaskByGcId(listId, idField.id, os.id);
+      let cardListId = listId;
+      let cardFields = fields;
+
+      // Anti-duplicata: se roteia p/ contrato mas o card legado já existe na
+      // Avulso (criado antes do roteamento), atualiza ele LÁ e loga migração
+      // pendente, em vez de criar um duplicado na lista de contrato.
+      if (!existing && key !== "avulso") {
+        const aFields = await getListFields(AVULSO_LIST_ID);
+        const aIdField = aFields.get(ID_FIELD_NAME);
+        if (aIdField) {
+          const legado = await findTaskByGcId(AVULSO_LIST_ID, aIdField.id, os.id);
+          if (legado) {
+            existing = legado;
+            cardListId = AVULSO_LIST_ID;
+            cardFields = aFields;
+            console.warn(
+              `[sync] OS ${os.codigo}: card existe na Avulso, mas roteia p/ ${key}. Atualizando na Avulso (migração de lista pendente).`
+            );
+          }
+        }
+      }
 
       if (!existing) {
-        const input = buildTaskInput(os, fields);
+        const statusFor = statusFnForList(listId);
+        // Em listas de contrato omitimos o status inicial ("to do" não existe lá):
+        // o ClickUp usa o primeiro status da lista (Entrada e Pré-Análise).
+        const initialStatus = listId === AVULSO_LIST_ID ? config.sync.initialStatus : undefined;
+        const input = buildTaskInput(os, fields, { statusFor, initialStatus });
         const taskId = await createTask(listId, input);
         criadas++;
         console.log(`[sync] criado card ${taskId} ← OS ${os.codigo} (${key})`);
         continue;
       }
 
-      // Card já existe: (1) status se a situação mudou; (2) re-sync dos campos que mudaram.
-      const alvo = statusForSituacao(os.situacao_id);
+      // Card já existe: (1) status se a situação mudou; (2) re-sync dos campos.
+      // Usa o de-para da LISTA onde o card de fato está (cardListId).
+      const statusFor = statusFnForList(cardListId);
+      const alvo = statusFor(os.situacao_id);
       // ClickUp normaliza o status para minúsculas; compara case-insensitive
       // para não reescrever o status à toa quando só difere a caixa.
       const statusMudou =
@@ -92,7 +130,7 @@ export async function runOnce(): Promise<void> {
 
       let camposMudados: { id: string; value: unknown }[] = [];
       if (config.sync.resyncFields) {
-        const desejados = buildCustomFields(os, fields);
+        const desejados = buildCustomFields(os, cardFields);
         camposMudados = desejados.filter(
           (f) => !sameValue(existing.fields.get(f.id) ?? "", f.value)
         );

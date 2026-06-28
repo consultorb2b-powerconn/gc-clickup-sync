@@ -89,12 +89,6 @@ function listaComponentes(os: GcOrdemServico): string {
     .join("; ");
 }
 
-/**
- * De-para entre o nome do custom field no ClickUp e o valor extraído da OS.
- * Os nomes precisam bater (case-insensitive) com os campos criados na UI.
- * Campos que não existirem na lista são simplesmente ignorados.
- */
-
 /** Remove ":" final e espaços de uma descrição de atributo. Ex.: "MOD:" -> "MOD". */
 function limpaDescricao(d: string | undefined): string {
   return (d ?? "").replace(/[:\s]+$/, "").trim();
@@ -176,7 +170,13 @@ export function buildCustomFields(
 
 export function buildTaskInput(
   os: GcOrdemServico,
-  listFields: Map<string, ClickUpField>
+  listFields: Map<string, ClickUpField>,
+  opts?: {
+    /** Mapa situação→status da LISTA onde o card será criado. Padrão: Avulso. */
+    statusFor?: (situacaoId: string | number | null | undefined) => string | null;
+    /** Status inicial quando a situação não está mapeada. Em contrato: undefined (omite). */
+    initialStatus?: string;
+  }
 ): CreateTaskInput {
   const custom_fields = buildCustomFields(os, listFields);
 
@@ -185,8 +185,12 @@ export function buildTaskInput(
   const cliente = os.nome_cliente ?? "sem cliente";
   const partes = [`OS ${os.codigo}`, cliente, modelo, serie].filter(Boolean);
 
-  // Status inicial: a situação da OS tem prioridade; senão o INITIAL_STATUS; senão omite.
-  const status = statusForSituacao(os.situacao_id) ?? config.sync.initialStatus;
+  // Status inicial: a situação da OS tem prioridade (pelo mapa informado);
+  // senão o initialStatus; senão omite. Em listas de contrato o initialStatus
+  // vem undefined para não enviar um status ("to do") que não existe lá.
+  const statusFor = opts?.statusFor ?? statusForSituacao;
+  const initial = opts && "initialStatus" in opts ? opts.initialStatus : config.sync.initialStatus;
+  const status = statusFor(os.situacao_id) ?? initial;
 
   return {
     name: partes.join(" — "),
