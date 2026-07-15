@@ -118,6 +118,6 @@ export async function listOrdensServicos(opts: {
     pagina = body.meta.proxima_pagina;
     await sleep(400); // ~2.5 req/s, abaixo do teto de 3/s
   }
-
+if (out.length) { console.log("[diag] campos:", JSON.stringify(Object.keys(out[0]))); console.log("[diag] amostra:", JSON.stringify(out[0])); const sidTest = out[0].situacao_id; const pt = new URLSearchParams({ situacao_id: String(sidTest), pagina: "1" }); if (config.gc.lojaId) pt.set("loja_id", config.gc.lojaId); const rt = await fetch(config.gc.baseUrl + "/ordens_servicos?" + pt.toString(), { headers: headers() }); const bt = await rt.json(); const arrT = bt.data || []; const distintas = Array.from(new Set(arrT.map(function(o){ return o.situacao_id; }))); console.log("[diag] filtro situacao_id=" + sidTest + " status=" + rt.status + " total=" + arrT.length + " distintas=" + JSON.stringify(distintas)); }
   return out;
 }
