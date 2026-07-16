@@ -28,5 +28,5 @@ jobs:
           GC_CENTRO_CUSTO_MAP: ""
           INITIAL_STATUS: "to do"
           LOOKBACK_DAYS: "3"
-          SYNC_SEARCH_DAYS: "120"
+          SYNC_SEARCH_DAYS: "400"
           RUN_ONCE: "true"
