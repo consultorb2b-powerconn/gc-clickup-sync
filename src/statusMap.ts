@@ -3,7 +3,7 @@
  * no ClickUp (lista OS – Avulso, 20 status do fluxo Avulso).
  *
  * - Os VALORES precisam bater (case-insensitive) com o NOME do status criado no ClickUp.
- * - situacao_id NÃO listado aqui => statusForSituacao retorna undefined => o sync
+ * - situacao_id NÃO listado aqui => statusForSituacao retorna null => o sync
  *   NÃO altera o status do card (fica como está / como o usuário deixou).
  *
  * Situações de CONTRATO (FATURAR CONTRATO, FINALIZADO EM CONTRATO/GARANTIA/SEM CUSTO)
@@ -67,10 +67,13 @@ const SITUACAO_TO_STATUS: Record<string, string> = {
 };
 
 /**
- * Retorna o nome do status do ClickUp para a situação da OS, ou undefined
+ * Retorna o nome do status do ClickUp para a situação da OS, ou null
  * se a situação não está mapeada (nesse caso o sync não mexe no status).
+ * Assinatura alinhada com statusForSituacaoContrato para o de-para por lista.
  */
-export function statusForSituacao(situacaoId: string | null): string | undefined {
-  if (!situacaoId) return undefined;
-  return SITUACAO_TO_STATUS[String(situacaoId)];
+export function statusForSituacao(
+  situacaoId: string | number | null | undefined
+): string | null {
+  if (situacaoId == null) return null;
+  return SITUACAO_TO_STATUS[String(situacaoId)] ?? null;
 }
