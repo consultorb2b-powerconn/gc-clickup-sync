@@ -54,21 +54,38 @@ export async function runOnce(): Promise<void> {
     dataInicio = config.sync.since; // janela fixa (backfill)
   } else {
     const inicio = new Date(fim);
-    inicio.setDate(inicio.getDate() - config.sync.lookbackDays);
+    inicio.setDate(inicio.getDate() - config.sync.searchLookbackDays);
     dataInicio = ymd(inicio);
   }
 
   const janela = { dataInicio, dataFim: ymd(fim) };
-  console.log(`[sync] janela ${janela.dataInicio} → ${janela.dataFim}`);
+  console.log(`[sync] janela de busca ${janela.dataInicio} → ${janela.dataFim}`);
 
   const ordens = await listOrdensServicos(janela);
   console.log(`[sync] ${ordens.length} OS retornadas pelo GestãoClick`);
+
+  // Recorte por DATA DE MODIFICAÇÃO (client-side). A API só filtra por data de
+  // entrada, então buscamos uma janela larga e aqui ficamos só com as OS que
+  // foram de fato mexidas recentemente — assim editar uma OS antiga também
+  // dispara o sync. No modo backfill (since), processa tudo o que veio.
+  let alvoOrdens = ordens;
+  if (!config.sync.since) {
+    const corte = ymd(new Date(fim.getTime() - config.sync.modifiedWithinDays * 86_400_000));
+    alvoOrdens = ordens.filter((os) => {
+      // Fallback em cascata; se nenhuma data for conhecida, processa por segurança.
+      const ref = String(os.modificado_em ?? os.cadastrado_em ?? os.data_entrada ?? "");
+      return ref === "" || ref >= corte;
+    });
+    console.log(
+      `[sync] ${alvoOrdens.length}/${ordens.length} OS modificadas desde ${corte} (janela de modificação: ${config.sync.modifiedWithinDays} dia(s))`
+    );
+  }
 
   let criadas = 0;
   let atualizadas = 0;
   let inalteradas = 0;
 
-  for (const os of ordens) {
+  for (const os of alvoOrdens) {
     try {
       // Roteamento (Modelo A): produto override -> atributo+região -> avulso.
       const key = routeContrato(os);            // "avulso" | "cpfl" | "neo"

@@ -12,7 +12,6 @@ export interface GcEquipamento {
   laudo?: string;
   termos_garantia?: string;
 }
-
 export interface GcProduto {
   produto_id?: number | string;
   nome_produto?: string;
@@ -20,7 +19,6 @@ export interface GcProduto {
   valor_venda?: string;
   valor_total?: string;
 }
-
 export interface GcServico {
   servico_id?: string;
   nome_servico?: string;
@@ -28,7 +26,6 @@ export interface GcServico {
   valor_venda?: string | number;
   valor_total?: string;
 }
-
 export interface GcAtributo {
   id?: string;
   atributo_id?: string;
@@ -36,7 +33,6 @@ export interface GcAtributo {
   conteudo?: string;
   tipo?: string;
 }
-
 export interface GcOrdemServico {
   id: string;
   codigo: string;
@@ -48,6 +44,10 @@ export interface GcOrdemServico {
   data_entrada: string | null;
   data_saida: string | null;
   previsao_entrega: string | null;
+  // Datas de auditoria do GestãoClick (AAAA-MM-DD ou AAAA-MM-DD HH:MM:SS).
+  // modificado_em é usado no sync para o recorte por data de modificação.
+  cadastrado_em: string | null;
+  modificado_em: string | null;
   situacao_id: string | null;
   nome_situacao: string | null;
   valor_total: string | null;
@@ -61,14 +61,12 @@ export interface GcOrdemServico {
   atributos?: { atributo: GcAtributo }[];
   [k: string]: unknown;
 }
-
 interface GcListResponse {
   code: number;
   status: string;
   meta: { proxima_pagina: number | null };
   data: GcOrdemServico[];
 }
-
 function headers(): Record<string, string> {
   return {
     "access-token": config.gc.accessToken,
@@ -76,12 +74,13 @@ function headers(): Record<string, string> {
     "Content-Type": "application/json",
   };
 }
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Lista todas as OS dentro da janela [dataInicio, dataFim] (formato AAAA-MM-DD),
  * paginando até o fim. Respeita o limite de ~3 req/s do GestãoClick.
+ *
+ * OBS.: data_inicio/data_fim filtram pela DATA DE ENTRADA da OS (não pela
+ * modificação). O recorte por data de modificação é feito no sync.ts.
  */
 export async function listOrdensServicos(opts: {
   dataInicio: string;
@@ -89,7 +88,6 @@ export async function listOrdensServicos(opts: {
 }): Promise<GcOrdemServico[]> {
   const out: GcOrdemServico[] = [];
   let pagina = 1;
-
   while (true) {
     const params = new URLSearchParams({
       data_inicio: opts.dataInicio,
@@ -99,10 +97,8 @@ export async function listOrdensServicos(opts: {
       direcao: "asc",
     });
     if (config.gc.lojaId) params.set("loja_id", config.gc.lojaId);
-
     const url = `${config.gc.baseUrl}/ordens_servicos?${params.toString()}`;
     const res = await fetch(url, { headers: headers() });
-
     if (res.status === 429) {
       await sleep(1500); // backoff por rate limit
       continue;
@@ -110,14 +106,11 @@ export async function listOrdensServicos(opts: {
     if (!res.ok) {
       throw new Error(`GestãoClick GET ordens_servicos falhou: ${res.status} ${await res.text()}`);
     }
-
     const body = (await res.json()) as GcListResponse;
     out.push(...(body.data ?? []));
-
     if (body.meta?.proxima_pagina == null) break;
     pagina = body.meta.proxima_pagina;
     await sleep(400); // ~2.5 req/s, abaixo do teto de 3/s
   }
-
   return out;
 }

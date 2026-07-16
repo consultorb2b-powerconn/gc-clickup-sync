@@ -39,10 +39,27 @@ export const config = {
   centroCustoMap: parseCentroCustoMap(process.env.GC_CENTRO_CUSTO_MAP),
   sync: {
     cron: process.env.SYNC_CRON?.trim() || "*/10 * * * *",
-    lookbackDays: Number(process.env.LOOKBACK_DAYS ?? 3),
-    // Data fixa de início da janela (AAAA-MM-DD). Se definida, sobrepõe o lookbackDays.
-    // Útil para backfill único, ex.: SYNC_SINCE=2026-01-01. Remova depois.
+
+    // Janela de BUSCA na API (por data de entrada da OS). O endpoint
+    // /ordens_servicos só filtra por data_inicio/data_fim (= data de entrada),
+    // então precisa ser larga o bastante para que OS antigas ainda voltem na
+    // resposta e possam ser reavaliadas pela data de modificação abaixo.
+    // Ajuste via SYNC_SEARCH_DAYS (padrão: 120 dias).
+    searchLookbackDays: Number(process.env.SYNC_SEARCH_DAYS ?? 120),
+
+    // Recorte por data de MODIFICAÇÃO (client-side): dentro do que a busca
+    // trouxe, só processa OS mexidas nos últimos N dias. É isso que faz editar
+    // uma OS antiga no GestãoClick disparar o sync do card. Mantém compat com o
+    // antigo LOOKBACK_DAYS; ajuste via SYNC_MODIFIED_DAYS (padrão: 3 dias).
+    modifiedWithinDays: Number(
+      process.env.SYNC_MODIFIED_DAYS ?? process.env.LOOKBACK_DAYS ?? 3
+    ),
+
+    // Data fixa de início da janela (AAAA-MM-DD). Se definida, sobrepõe o
+    // searchLookbackDays E desativa o recorte por modificação (backfill pega
+    // tudo no intervalo). Útil para carga única, ex.: SYNC_SINCE=2026-01-01.
     since: process.env.SYNC_SINCE?.trim() || "",
+
     initialStatus: process.env.INITIAL_STATUS?.trim() || "",
     // Re-sync de campos em cards já existentes (GestãoClick manda nesses campos).
     // Ligado por padrão; defina RESYNC_FIELDS=false para desligar.

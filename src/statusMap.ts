@@ -1,6 +1,6 @@
 /**
  * De-para entre a situação da OS no GestãoClick (situacao_id) e o status
- * no ClickUp (lista OS – Avulso, 19 status do fluxo Avulso).
+ * no ClickUp (lista OS – Avulso, 20 status do fluxo Avulso).
  *
  * - Os VALORES precisam bater (case-insensitive) com o NOME do status criado no ClickUp.
  * - situacao_id NÃO listado aqui => statusForSituacao retorna undefined => o sync
@@ -11,12 +11,13 @@
  * ficam de fora de propósito.
  */
 
-/** Os 19 status do fluxo Avulso (nomes exatamente como criados no ClickUp).
+/** Os 20 status do fluxo Avulso (nomes exatamente como criados no ClickUp).
  *  Alguns foram encurtados por causa do limite de ~20 caracteres do ClickUp. */
 export const STATUS_AVULSO = {
   ENTRADA: "Entrada e Pré-Análise",
   PRE_ANALISE_OK: "Pré-Análise Finalizada",
   ANALISE: "Análise – Montar O.S.",
+  ENVIAR_EMAIL: "Enviar E-mail",
   RETORNAR_T4_T5: "Retornar T4/T5",
   AG_APROVACAO: "Aguardando Aprovação",
   COBRAR_NAO_APROVADO: "Cobrar – Não Aprovado",
@@ -37,12 +38,13 @@ export const STATUS_AVULSO = {
 
 /**
  * situacao_id (GestãoClick) -> nome do status (ClickUp).
- * Mapeadas: 23 situações. Sem mapeamento de propósito: ENVIAR EMAIL (8910314),
- * ATUALIZAÇÃO FW (5995833) — etapas que não têm status equivalente.
+ * Mapeadas: 24 situações. Sem mapeamento de propósito: ATUALIZAÇÃO FW (5995833)
+ * — etapa que não tem status equivalente.
  */
 const SITUACAO_TO_STATUS: Record<string, string> = {
   "6155342": STATUS_AVULSO.ENTRADA,                 // ENTRADA/ PRÉ ANALISE
   "9123792": STATUS_AVULSO.ANALISE,                 // EM ANALISE
+  "8910314": STATUS_AVULSO.ENVIAR_EMAIL,            // ENVIAR EMAIL
   "9135850": STATUS_AVULSO.RETORNAR_T4_T5,          // T5/ DESCONTINUADO
   "6341882": STATUS_AVULSO.RETORNAR_T4_T5,          // T4- SEM MANUTENÇÃO
   "5810995": STATUS_AVULSO.AG_APROVACAO,            // EM APROVAÇÃO
