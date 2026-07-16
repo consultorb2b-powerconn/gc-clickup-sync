@@ -18,7 +18,7 @@
  * "_" viram espaço, espaços colapsados), pra tolerar a bagunça do cadastro
  * (ex.: "CPFL -   INDAIATUBA_SP", "COELBA- NEO ENERGIA").
  */
-export type ContratoKey = "avulso" | "cpfl" | "neo" | "conecta";
+export type ContratoKey = "avulso" | "cpfl" | "neo" | "conecta" | "tronnix_pmpr" | "tronnix_comodato";
 
 /** Map contrato -> list id do ClickUp (Powerconn BR). */
 export const LISTA_POR_CONTRATO: Record<ContratoKey, string> = {
@@ -26,6 +26,21 @@ export const LISTA_POR_CONTRATO: Record<ContratoKey, string> = {
   cpfl: process.env.CLICKUP_LIST_CPFL ?? "901327620289",
   neo: process.env.CLICKUP_LIST_NEOENERGIA ?? "901327620291",
   conecta: process.env.CLICKUP_LIST_CONECTA ?? "901327705932",
+  // Defina no .env após criar as listas (sem default chumbado de propósito).
+  tronnix_pmpr: process.env.CLICKUP_LIST_TRONNIX_PMPR ?? "",
+  tronnix_comodato: process.env.CLICKUP_LIST_TRONNIX_COMODATO ?? "",
+};
+
+/**
+ * Roteamento por ID de cliente do GestãoClick (VENCE tudo, inclusive o nome).
+ * Necessário para o Tronnix, cujos dois cadastros compartilham a MESMA razão
+ * social ("TRONNIX SOLUCOES DE SEGURANCA LTDA") — só o cliente_id os distingue:
+ *   32600822 = "POLICIA MILITAR DO PARANÁ-PR"  -> contrato PMPR
+ *   59600772 = "TRONNIX -  COMODATO"           -> comodato (ativo interno)
+ */
+const CONTRATO_POR_CLIENTE_ID: Record<string, ContratoKey> = {
+  "32600822": "tronnix_pmpr",
+  "59600772": "tronnix_comodato",
 };
 
 // === Bases de contrato (curadas a partir do GestãoClick) ===
@@ -196,6 +211,11 @@ function contratoPorItem(os: any): ContratoKey | null {
 }
 
 export function routeContrato(os: any): ContratoKey {
+  // 0) Determinístico por ID de cliente. VENCE tudo — é o único jeito de separar
+  //    os dois cadastros Tronnix (mesma razão social, cliente_id diferente).
+  const porId = CONTRATO_POR_CLIENTE_ID[String(os?.cliente_id ?? "")];
+  if (porId) return porId;
+
   // 1) Determinístico por nome de cliente (lista curada). Vence tudo e FORÇA
   //    contrato mesmo se TIPO DE ENTRADA=AVULSO no GestãoClick.
   const porClienteCurado = contratoPorClienteCurado(os?.nome_cliente);
@@ -227,5 +247,15 @@ export function routeContrato(os: any): ContratoKey {
 
 /** Atalho: OS -> list id alvo. */
 export function listIdParaOs(os: any): string {
-  return LISTA_POR_CONTRATO[routeContrato(os)];
+  const contrato = routeContrato(os);
+  const listId = LISTA_POR_CONTRATO[contrato];
+  if (!listId) {
+    console.warn(
+      `[contrato] OS ${os?.codigo ?? os?.id}: contrato "${contrato}" sem list id ` +
+        `configurado (defina CLICKUP_LIST_TRONNIX_PMPR / CLICKUP_LIST_TRONNIX_COMODATO no .env). ` +
+        `Enviada para Avulso por segurança.`,
+    );
+    return LISTA_POR_CONTRATO.avulso;
+  }
+  return listId;
 }
