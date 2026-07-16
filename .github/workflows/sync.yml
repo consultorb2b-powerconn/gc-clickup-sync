@@ -23,13 +23,10 @@ jobs:
           CLICKUP_LIST_CPFL: "901327620289"
           CLICKUP_LIST_NEOENERGIA: "901327620291"
           CLICKUP_LIST_CONECTA: "901327705932"
+          CLICKUP_LIST_TRONNIX_PMPR: "901327776903"
+          CLICKUP_LIST_TRONNIX_COMODATO: "901327776938"
           GC_CENTRO_CUSTO_MAP: ""
           INITIAL_STATUS: "to do"
           LOOKBACK_DAYS: "3"
+          SYNC_SEARCH_DAYS: "120"
           RUN_ONCE: "true"
- 
-
-# NOTA sobre minutos gratis:
-# - Repo privado: ~2000 min/mes gratis. A cada 30 min costuma encostar no limite;
-#   se quiser folga total, troque o cron para "0 * * * *" (de hora em hora).
-# - Repo publico: minutos ilimitados/gratis em qualquer cadencia.
