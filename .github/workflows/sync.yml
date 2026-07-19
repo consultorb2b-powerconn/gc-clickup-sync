@@ -27,6 +27,6 @@ jobs:
           CLICKUP_LIST_TRONNIX_COMODATO: "901327776938"
           GC_CENTRO_CUSTO_MAP: ""
           INITIAL_STATUS: "to do"
-          LOOKBACK_DAYS: "3"
+          LOOKBACK_DAYS: "6"
           SYNC_SEARCH_DAYS: "400"
           RUN_ONCE: "true"
