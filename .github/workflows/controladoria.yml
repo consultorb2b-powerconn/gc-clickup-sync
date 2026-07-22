@@ -1,0 +1,37 @@
+name: Controladoria - rotear finalizados
+on:
+  schedule:
+    - cron: "17 12,21 * * 1-5"   # 09h e 18h Brasilia (12/21 UTC), seg-sex
+  workflow_dispatch: {}           # botao "Run workflow" (e disparo via cron-job.org)
+jobs:
+  controladoria:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run controladoria:once
+        env:
+          # ClickUp (unico servico usado pelo roteador)
+          CLICKUP_TOKEN: ${{ secrets.CLICKUP_TOKEN }}
+          CTRL_SPACE_ID: "901313188608"          # 7.GSA & GSF
+          # Listas de OPERACAO (fonte MANU-*)
+          CLICKUP_LIST_AVULSO: "901327620288"
+          CLICKUP_LIST_CPFL: "901327620289"
+          CLICKUP_LIST_NEOENERGIA: "901327620291"
+          CLICKUP_LIST_CONECTA: "901327705932"
+          # Lote/pausa (protecao anti-runaway)
+          CTRL_BATCH: "40"
+          CTRL_BATCH_PAUSE_MS: "1500"
+          # Primeira rodada: "true" SIMULA (nao cria nada). Depois troque para "false".
+          CTRL_DRY_RUN: "true"
+          # Piso de data: so consolida finalizados a partir daqui (vazio = todo o historico).
+          CTRL_SINCE: "2026-01-01"
+          # Exigidos pelo config.ts no load (o roteador nao usa o GestaoClick,
+          # mas o config valida a presenca dessas chaves).
+          GC_ACCESS_TOKEN: ${{ secrets.GC_ACCESS_TOKEN }}
+          GC_SECRET_TOKEN: ${{ secrets.GC_SECRET_TOKEN }}
