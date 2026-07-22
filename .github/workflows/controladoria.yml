@@ -26,12 +26,9 @@ jobs:
           CLICKUP_LIST_CONECTA: "901327705932"
           # Lote/pausa (protecao anti-runaway)
           CTRL_BATCH: "40"
-          CTRL_BATCH_PAUSE_MS: "1500"
-          # Primeira rodada: "true" SIMULA (nao cria nada). Depois troque para "false".
+          CTRL_BATCH_PAUSE_MS: "3000"
           CTRL_DRY_RUN: "false"
-          # Piso de data: so consolida finalizados a partir daqui (vazio = todo o historico).
-          CTRL_SINCE: "2026-07-01"
-          # Exigidos pelo config.ts no load (o roteador nao usa o GestaoClick,
-          # mas o config valida a presenca dessas chaves).
+          CTRL_SINCE: "2026-01-01"
+          # Exigidos pelo config.ts no load (o roteador nao usa o GestaoClick).
           GC_ACCESS_TOKEN: ${{ secrets.GC_ACCESS_TOKEN }}
           GC_SECRET_TOKEN: ${{ secrets.GC_SECRET_TOKEN }}
