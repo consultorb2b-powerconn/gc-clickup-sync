@@ -24,7 +24,7 @@
  */
 import "dotenv/config";
 import { config } from "./config.js";
-import { getListFields, createTask, type CustomFieldValue } from "./clickup.js";
+import { createTask, type CustomFieldValue } from "./clickup.js";
 
 const BASE = config.clickup.baseUrl;
 const TOKEN = config.clickup.token;
@@ -195,17 +195,6 @@ async function main(): Promise<void> {
   const algumaLista = mesParaLista.get("anteriores") ?? [...mesParaLista.values()][0];
   const statusCtrl = await getListStatuses(algumaLista);
 
-  // ID do campo "ID GestãoClick" em cada lista de mês (para dedup) — cacheado
-  const idFieldCache = new Map<string, string | null>();
-  async function idFieldDe(listId: string): Promise<string | null> {
-    if (idFieldCache.has(listId)) return idFieldCache.get(listId)!;
-    const fields = await getListFields(listId);
-    const f = fields.get("id gestãoclick") ?? fields.get("id gestaoclick");
-    const id = f ? f.id : null;
-    idFieldCache.set(listId, id);
-    return id;
-  }
-
   // 2) Resolve as 4 listas de Financeiro a Receber por cliente (por token no nome)
   const finLists = await getLists(fFin.id);
   const finPorCliente = new Map<string, string>();
@@ -269,18 +258,23 @@ async function main(): Promise<void> {
   // 5) Cria em lotes, com dedup
   let criados = 0, jaExistiam = 0, lote = 0;
   for (const c of candidatos) {
-    const idField = await idFieldDe(c.destListId);
-    if (idField && (await achaExistente(c.destListId, idField, c.gcId, c.statusAlvo))) {
+    // Campos sao workspace-wide (mesmo field_id em qualquer lista): copiamos
+    // {id, value} direto do card de origem — nao depende dos campos "ativos" na
+    // lista de destino (era isso que deixava os cards sem informacao).
+    const ALVOS = new Set(["id gestãoclick", "id gestaoclick", "nº os", "n° os", "valor total os", "cliente"]);
+    const cf: CustomFieldValue[] = [];
+    let idGcFieldId: string | null = null;
+    for (const f of c.origem.custom_fields ?? []) {
+      const nomeF = f.name.toLowerCase();
+      if (nomeF === "id gestãoclick" || nomeF === "id gestaoclick") idGcFieldId = f.id;
+      if (!ALVOS.has(nomeF)) continue;
+      if (f.value === undefined || f.value === null || f.value === "") continue;
+      cf.push({ id: f.id, value: f.value });
+    }
+    // Dedup pelo field_id workspace-wide do ID GestãoClick (mesmo id na lista destino)
+    if (idGcFieldId && (await achaExistente(c.destListId, idGcFieldId, c.gcId, c.statusAlvo))) {
       jaExistiam++;
       continue;
-    }
-    // Mapeia campos por nome (só os que existirem na lista de destino)
-    const destFields = await getListFields(c.destListId);
-    const cf: CustomFieldValue[] = [];
-    for (const nome of ["ID GestãoClick", "Nº OS", "Valor Total OS", "Cliente"]) {
-      const f = destFields.get(nome.toLowerCase());
-      const v = campo(c.origem, nome);
-      if (f && v !== null) cf.push({ id: f.id, value: v });
     }
     const nome = c.origem.name || `OS ${campo(c.origem, "Nº OS") ?? c.gcId}`;
     if (DRY_RUN) {
