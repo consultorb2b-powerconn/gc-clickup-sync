@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "sync:once": "tsx src/index.ts --once"
+    "sync:once": "tsx src/index.ts --once",
+    "controladoria:once": "tsx src/controladoria.ts --once"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
