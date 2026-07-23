@@ -26,7 +26,7 @@ function brl(n: number): string {
  * Converte a data do GestãoClick (AAAA-MM-DD ou DD/MM/AAAA) em epoch ms
  * para o campo de Data do ClickUp. Usa meio-dia UTC para evitar virada de fuso.
  */
-function parseGcDateMs(d: string | null): number | undefined {
+export function parseGcDateMs(d: string | null): number | undefined {
   if (!d) return undefined;
   const iso = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
   const br = d.match(/^(\d{2})\/(\d{2})\/(\d{4})/);

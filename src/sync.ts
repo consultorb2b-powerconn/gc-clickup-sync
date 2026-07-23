@@ -7,7 +7,7 @@ import {
   updateTaskStatus,
   setTaskFieldValue,
 } from "./clickup.js";
-import { buildTaskInput, buildCustomFields } from "./mapper.js";
+import { buildTaskInput, buildCustomFields, parseGcDateMs } from "./mapper.js";
 import { statusForSituacao } from "./statusMap.js";
 import { statusForSituacaoContrato } from "./statusMapContrato.js";
 import { routeContrato, listIdParaOs } from "./contrato.js";
@@ -70,14 +70,18 @@ export async function runOnce(): Promise<void> {
   // dispara o sync. No modo backfill (since), processa tudo o que veio.
   let alvoOrdens = ordens;
   if (!config.sync.since) {
-    const corte = ymd(new Date(fim.getTime() - config.sync.modifiedWithinDays * 86_400_000));
+    const corteMs = fim.getTime() - config.sync.modifiedWithinDays * 86_400_000;
     alvoOrdens = ordens.filter((os) => {
-      // Fallback em cascata; se nenhuma data for conhecida, processa por segurança.
-      const ref = String(os.modificado_em ?? os.cadastrado_em ?? os.data_entrada ?? "");
-      return ref === "" || ref >= corte;
+      // O GestãoClick manda data em AAAA-MM-DD OU DD/MM/AAAA. Convertemos para
+      // timestamp e comparamos número com número — comparar string direto
+      // quebrava com o formato BR ("20/07/2026") e derrubava OS modificadas.
+      const ref = (os.modificado_em ?? os.cadastrado_em ?? os.data_entrada ?? null) as string | null;
+      const ms = parseGcDateMs(ref);
+      return ms === undefined || ms >= corteMs; // sem data conhecida → processa por segurança
     });
+    const corteLabel = ymd(new Date(corteMs));
     console.log(
-      `[sync] ${alvoOrdens.length}/${ordens.length} OS modificadas desde ${corte} (janela de modificação: ${config.sync.modifiedWithinDays} dia(s))`
+      `[sync] ${alvoOrdens.length}/${ordens.length} OS modificadas desde ${corteLabel} (janela de modificação: ${config.sync.modifiedWithinDays} dia(s))`
     );
   }
 
