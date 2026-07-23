@@ -100,15 +100,6 @@ async function getListStatuses(listId: string): Promise<string[]> {
   return (d.statuses ?? []).map((s) => s.status);
 }
 
-/** Busca card já consolidado (mesma OS + mesmo status) na lista do mês. */
-async function achaExistente(listId: string, idFieldId: string, gcId: string, statusAlvo: string): Promise<boolean> {
-  const filter = JSON.stringify([{ field_id: idFieldId, operator: "=", value: gcId }]);
-  const d = await cuGet<{ tasks: { status?: { status?: string } }[] }>(
-    `/list/${listId}/task?include_closed=true&custom_fields=${encodeURIComponent(filter)}`
-  );
-  const alvo = statusAlvo.toLowerCase();
-  return (d.tasks ?? []).some((t) => (t.status?.status ?? "").toLowerCase() === alvo);
-}
 
 const campo = (t: CuTask, nome: string): string | null => {
   const n = nome.toLowerCase();
@@ -125,14 +116,11 @@ const campoNum = (t: CuTask, nome: string): number | null => {
 
 /** OS de operação finalizada (espelha a regra do dashboard). */
 function operacaoFinalizada(t: CuTask): boolean {
-  const tipo = t.status?.type ?? "";
-  if (tipo === "closed" || tipo === "done") return true;
-  const nome = (t.status?.status ?? "").toLowerCase();
-  if (nome.includes("finalizado")) return true;
-  if (nome.includes("retornado")) return true;
-  const sit = (campo(t, "Situação GestãoClick") ?? "").toLowerCase();
-  if (sit.includes("despachado")) return true;
-  return false;
+  // Regra do gestor: SÓ entra na Controladoria quem está em STATUS finalizado
+  // de fato. Removidos os contornos antigos: "despachado" (Situação GestãoClick,
+  // muleta de quando o sync estava desatualizado — agora corrigido) e "retornado"
+  // (RETORNADO S/ REPARO não é finalizado). Só o nome do status manda.
+  return (t.status?.status ?? "").toLowerCase().includes("finalizado");
 }
 
 /** Recebível finalizado (status "Finalizado" da lista Financeiro a Receber). */
@@ -195,6 +183,17 @@ async function main(): Promise<void> {
   const algumaLista = mesParaLista.get("anteriores") ?? [...mesParaLista.values()][0];
   const statusCtrl = await getListStatuses(algumaLista);
 
+  // Pré-carrega o que já existe na Controladoria => dedup em memória (evita 1 GET por card)
+  const jaConsolidados = new Set<string>();
+  for (const listId of new Set(mesParaLista.values())) {
+    const existentes = await listAllTasks(listId);
+    for (const t of existentes) {
+      const gc = campo(t, "ID GestãoClick");
+      if (gc) jaConsolidados.add(gc);
+    }
+  }
+  console.log(`[ctrl] ${jaConsolidados.size} cards já consolidados (dedup em memória)`);
+
   // 2) Resolve as 4 listas de Financeiro a Receber por cliente (por token no nome)
   const finLists = await getLists(fFin.id);
   const finPorCliente = new Map<string, string>();
@@ -203,7 +202,7 @@ async function main(): Promise<void> {
     if (n.includes("CONECTA")) finPorCliente.set("CONECTA", l.id);
     else if (n.includes("NEO")) finPorCliente.set("NEO", l.id);
     else if (n.includes("CPFL")) finPorCliente.set("CPFL", l.id);
-    else if (n.includes("AVUL")) finPorCliente.set("AVULSO", l.id);
+    else if (n.includes("AVUL") || n.includes("MANUTENCAO")) finPorCliente.set("AVULSO", l.id);
   }
 
   // 3) Fontes
@@ -258,23 +257,20 @@ async function main(): Promise<void> {
   // 5) Cria em lotes, com dedup
   let criados = 0, jaExistiam = 0, lote = 0;
   for (const c of candidatos) {
+    // Dedup por ID GestãoClick SOZINHO: uma vez consolidada, a OS nunca é
+    // recriada — mesmo que o card tenha sido movido manualmente (ex.: para
+    // CONCLUÍDO) ou trocado de coluna. É o que faz a regra valer "de hoje pra
+    // frente" sem bagunçar o que já existe.
+    if (jaConsolidados.has(c.gcId)) { jaExistiam++; continue; }
     // Campos sao workspace-wide (mesmo field_id em qualquer lista): copiamos
-    // {id, value} direto do card de origem — nao depende dos campos "ativos" na
-    // lista de destino (era isso que deixava os cards sem informacao).
+    // {id, value} direto do card de origem.
     const ALVOS = new Set(["id gestãoclick", "id gestaoclick", "nº os", "n° os", "valor total os", "cliente"]);
     const cf: CustomFieldValue[] = [];
-    let idGcFieldId: string | null = null;
     for (const f of c.origem.custom_fields ?? []) {
       const nomeF = f.name.toLowerCase();
-      if (nomeF === "id gestãoclick" || nomeF === "id gestaoclick") idGcFieldId = f.id;
       if (!ALVOS.has(nomeF)) continue;
       if (f.value === undefined || f.value === null || f.value === "") continue;
       cf.push({ id: f.id, value: f.value });
-    }
-    // Dedup pelo field_id workspace-wide do ID GestãoClick (mesmo id na lista destino)
-    if (idGcFieldId && (await achaExistente(c.destListId, idGcFieldId, c.gcId, c.statusAlvo))) {
-      jaExistiam++;
-      continue;
     }
     const nome = c.origem.name || `OS ${campo(c.origem, "Nº OS") ?? c.gcId}`;
     if (DRY_RUN) {
@@ -283,6 +279,7 @@ async function main(): Promise<void> {
       continue;
     }
     await createTask(c.destListId, { name: nome, status: c.statusAlvo, custom_fields: cf });
+    jaConsolidados.add(c.gcId);
     criados++;
     if (++lote >= BATCH) { console.log(`[ctrl] lote de ${BATCH} criado, pausa ${BATCH_PAUSE_MS}ms`); await sleep(BATCH_PAUSE_MS); lote = 0; }
   }
