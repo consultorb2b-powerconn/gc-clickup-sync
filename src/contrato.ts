@@ -192,6 +192,11 @@ function contratoPorClienteCurado(cliente: unknown): ContratoKey | null {
   // Regra provisória Conecta por token no nome (enquanto EMPRESAS_CONECTA
   // estiver vazia). Confirmar/remover quando houver lista curada.
   if (/\bCONECTA\b/.test(n)) return "conecta";
+  // Fallback por KEYWORD no nome do cliente (ELEKTRO/RGE/CPFL...): força
+  // contrato mesmo com TIPO DE ENTRADA=AVULSO e nome fora da lista curada.
+  // Ex.: uma unidade nova "ELEKTRO REDES S.A - ..." cai em NEO em vez de Avulso.
+  const porKeyword = classificaTexto(cliente);
+  if (porKeyword) return porKeyword;
   return null;
 }
 
