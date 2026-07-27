@@ -141,12 +141,14 @@ async function main() {
   let comCardNaAvulso = 0;
   let jaArquivados = 0;
   let arquivados = 0;
-  const porDestino: Record<string, number> = { cpfl: 0, neo: 0 };
+  const porDestino: Record<string, number> = { cpfl: 0, neo: 0, conecta: 0 };
   const amostra: string[] = [];
 
   for (const os of ordens) {
     const key = routeContrato(os);
-    if (key === "avulso") continue;
+    // Migra SOMENTE contratos CPFL/NEO/CONECTA. Avulso fica; Tronnix (PMPR e
+    // Comodato) NÃO entra na migração/Controladoria — sai fora aqui.
+    if (key !== "cpfl" && key !== "neo" && key !== "conecta") continue;
     contratos++;
 
     const legado = idx.get(String(os.id));
@@ -171,7 +173,7 @@ async function main() {
 
   console.log("\n==================== RESUMO ====================");
   console.log(`OS de contrato na janela:           ${contratos}`);
-  console.log(`  com card legado na Avulso:        ${comCardNaAvulso}  (cpfl: ${porDestino.cpfl}, neo: ${porDestino.neo})`);
+  console.log(`  com card legado na Avulso:        ${comCardNaAvulso}  (cpfl: ${porDestino.cpfl}, neo: ${porDestino.neo}, conecta: ${porDestino.conecta})`);
   console.log(`  já arquivados antes:              ${jaArquivados}`);
   if (APPLY) {
     console.log(`  arquivados agora:                 ${arquivados}${LIMIT ? `  (limite ${LIMIT})` : ""}`);
